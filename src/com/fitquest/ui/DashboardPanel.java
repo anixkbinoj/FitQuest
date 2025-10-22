@@ -2,50 +2,69 @@ package com.fitquest.ui;
 import javax.swing.*;
 import java.awt.*;
 import com.fitquest.api.ApiClient;
+import java.io.IOException;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 public class DashboardPanel extends JPanel {
-    private static int currentUserId = 0;
-    private ApiClient api;
-    private JLabel xpLabel = new JLabel("XP: 0");
-    private JProgressBar xpBar = new JProgressBar(0,100);
+    // Constants for keys and panel names
+    private static final String DAILY_CHALLENGES_PANEL_KEY = "daily";
+    private static final String API_STATUS_KEY = "status";
+    private static final String API_CHALLENGES_KEY = "challenges";
+    private static final String API_OK_STATUS = "ok";
+
+    private final AppFrame frame;
+    private final ApiClient api;
+    private int currentUserId = 0; // Store user ID per instance
+
+    private final JLabel xpLabel = new JLabel("XP: 0");
+    private final JProgressBar xpBar = new JProgressBar(0, 100);
 
     public DashboardPanel(AppFrame frame, ApiClient api) {
+        this.frame = frame;
         this.api = api;
         setLayout(new BorderLayout());
+        initComponents();
+    }
+
+    private void initComponents() {
         JPanel top = new JPanel(new FlowLayout());
         top.add(new JLabel("Welcome to FitQuest!"));
         top.add(xpLabel);
         top.add(xpBar);
         add(top, BorderLayout.NORTH);
 
-        JButton daily = new JButton("Open Daily Challenges");
-        daily.addActionListener(e -> {
-            if (currentUserId != 0) {
-                try {
-                    JSONObject resp = api.getDailyChallenges(currentUserId);
-                    if ("ok".equals(resp.getString("status"))) {
-                        JSONArray arr = resp.getJSONArray("challenges");
-                        // Show daily challenges panel with data
-                        DailyChallengesPanel.showChallenges(arr, api, currentUserId);
-                        frame.show("daily"); // you must add it to AppFrame container as "daily"
-                    } else {
-                        JOptionPane.showMessageDialog(this, "Could not load challenges");
-                    }
-                } catch(Exception ex) {
-                    ex.printStackTrace();
-                }
+        JButton dailyChallengesButton = new JButton("Open Daily Challenges");
+        dailyChallengesButton.addActionListener(e -> openDailyChallenges());
+
+        add(dailyChallengesButton, BorderLayout.CENTER);
+    }
+
+    private void openDailyChallenges() {
+        if (currentUserId == 0) {
+            JOptionPane.showMessageDialog(this, "No user logged in. Please log in to see challenges.", "Not Logged In", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        try {
+            JSONObject resp = api.getDailyChallenges(currentUserId);
+            if (API_OK_STATUS.equals(resp.optString(API_STATUS_KEY))) {
+                JSONArray challengesArray = resp.getJSONArray(API_CHALLENGES_KEY);
+                // Assuming DailyChallengesPanel has a static method to show challenges.
+                // A better design might be to get an instance of the panel from AppFrame and update it.
+                DailyChallengesPanel.showChallenges(challengesArray, api, currentUserId);
+                frame.show(DAILY_CHALLENGES_PANEL_KEY);
             } else {
-                JOptionPane.showMessageDialog(this, "No user logged in");
+                String message = resp.optString("message", "Could not load challenges. Please try again.");
+                JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
             }
-        });
-
-        add(daily, BorderLayout.CENTER);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "A network error occurred. Please check your connection.", "Network Error", JOptionPane.ERROR_MESSAGE);
+        } catch (JSONException ex) {
+            JOptionPane.showMessageDialog(this, "Error parsing data from the server.", "Data Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
-    public static void setCurrentUserId(int id) { currentUserId = id; }
-    public static void setProfileData(String name, String age, String weight, String height, String level) {
-        // optional: store to static fields or pass to API
-    }
+    public void setCurrentUserId(int id) { this.currentUserId = id; }
 }
