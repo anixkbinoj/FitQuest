@@ -19,7 +19,7 @@ public class DashboardPanel extends JPanel {
     private int currentUserId = 0; // Store user ID per instance
 
     private final JLabel xpLabel = new JLabel("XP: 0");
-    private final JProgressBar xpBar = new JProgressBar(0, 100);
+    private final JProgressBar xpBar = new JProgressBar(0, 100); // Level 1 XP requirement
 
     public DashboardPanel(AppFrame frame, ApiClient api) {
         this.frame = frame;
@@ -33,6 +33,7 @@ public class DashboardPanel extends JPanel {
         top.add(new JLabel("Welcome to FitQuest!"));
         top.add(xpLabel);
         top.add(xpBar);
+        xpBar.setStringPainted(true);
         add(top, BorderLayout.NORTH);
 
         JButton dailyChallengesButton = new JButton("Open Daily Challenges");
@@ -67,5 +68,12 @@ public class DashboardPanel extends JPanel {
     }
     public void setCurrentUserId(int id) {
         this.currentUserId = id;
+    }
+
+    public void updateXp(int newXp, int newLevel) {
+        // Assuming 100 XP per level for simplicity
+        int xpForCurrentLevel = newXp % 100;
+        xpLabel.setText(String.format("Level: %d | XP: %d / 100", newLevel, xpForCurrentLevel));
+        xpBar.setValue(xpForCurrentLevel);
     }
 }

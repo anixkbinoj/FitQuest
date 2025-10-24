@@ -1,5 +1,4 @@
-package com.fitquest.api;
-
+package com.fitquest.ui;
 import java.net.URI;
 import java.io.IOException;
 import java.net.http.*;
@@ -21,30 +20,15 @@ public class ApiClient {
                 .header("Content-Type", "application/json")
                 .POST(BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
                 .build();
-        HttpResponse<String> response = client.send(req, HttpResponse.BodyHandlers.ofString());
-        String responseBody = response.body();
-
-        try {
-            return new JSONObject(responseBody);
-        } catch (JSONException e) {
-            // This is critical for debugging. If the server returns an error (like a PHP warning),
-            // it won't be valid JSON. This exception will wrap the invalid server response.
-            throw new JSONException("Failed to parse JSON. Server response: " + responseBody, e);
-        }
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        return new JSONObject(resp.body());
     }
 
-    public JSONObject register(String name, String email, String password, Integer age, String gender, Double weight, Double height, String fitnessLevel) throws IOException, InterruptedException {
+    public JSONObject register(String name, String email, String password) throws IOException, InterruptedException {
         JSONObject body = new JSONObject();
         body.put("name", name);
         body.put("email", email);
         body.put("password", password);
-        // Add optional profile data
-        if (age != null) body.put("age", age);
-        if (gender != null) body.put("gender", gender);
-        if (weight != null) body.put("weight", weight);
-        if (height != null) body.put("height", height);
-        if (fitnessLevel != null) body.put("fitness_level", fitnessLevel);
-
         return postJson("/register.php", body);
     }
 
@@ -68,11 +52,5 @@ public class ApiClient {
         body.put("progress", progress);
         body.put("complete", complete);
         return postJson("/submitProgress.php", body);
-    }
-
-    public JSONObject getUserProfile(int userId) throws IOException, InterruptedException {
-        JSONObject body = new JSONObject();
-        body.put("user_id", userId);
-        return postJson("/getUserProfile.php", body);
     }
 }

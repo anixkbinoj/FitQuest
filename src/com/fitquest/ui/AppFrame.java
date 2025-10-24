@@ -51,6 +51,11 @@ public class AppFrame extends JFrame {
         show("daily");
     }
 
+    public void onChallengeCompleted(int newXp, int newLevel) {
+        dashboard.updateXp(newXp, newLevel);
+        show("dashboard");
+    }
+
     public void show(String name) { cards.show(container, name); }
 
     public static void open(ApiClient api) {

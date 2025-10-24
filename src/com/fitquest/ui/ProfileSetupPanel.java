@@ -12,10 +12,10 @@ public class ProfileSetupPanel extends JPanel {
     private final JTextField emailField = new JTextField();
     private final JPasswordField passwordField = new JPasswordField();
     private final JTextField ageField = new JTextField();
-    private final JComboBox<String> genderCombo = new JComboBox<>(new String[]{"male","female","other"});
+    private final JComboBox<String> genderCombo = new JComboBox<>(new String[]{"Select...", "Male", "Female", "Other"});
     private final JTextField weightField = new JTextField();
     private final JTextField heightField = new JTextField();
-    private final JComboBox<String> levelCombo = new JComboBox<>(new String[]{"beginner","advanced","elite"});
+    private final JComboBox<String> levelCombo = new JComboBox<>(new String[]{"Select...", "Beginner", "Advanced", "Elite"});
 
     public ProfileSetupPanel(AppFrame frame, ApiClient api) {
         this.frame = frame;
@@ -42,13 +42,35 @@ public class ProfileSetupPanel extends JPanel {
     }
 
     private void registerAndContinue() {
+        // Input validation
+        if (nameField.getText().isBlank() || emailField.getText().isBlank() || passwordField.getPassword().length == 0) {
+            JOptionPane.showMessageDialog(this, "Name, Email, and Password cannot be empty.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Parse optional fields, handling potential blank inputs
+        Integer age = null;
+        Double weight = null;
+        Double height = null;
         try {
-            // TODO: Add input validation (e.g., check for empty fields, valid numbers)
+            if (!ageField.getText().isBlank()) age = Integer.parseInt(ageField.getText());
+            if (!weightField.getText().isBlank()) weight = Double.parseDouble(weightField.getText());
+            if (!heightField.getText().isBlank()) height = Double.parseDouble(heightField.getText());
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Age, Weight, and Height must be valid numbers.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String gender = genderCombo.getSelectedIndex() > 0 ? (String) genderCombo.getSelectedItem() : null;
+        String fitnessLevel = levelCombo.getSelectedIndex() > 0 ? (String) levelCombo.getSelectedItem() : null;
+
+        try {
+            // Call the full register method with all profile data
             JSONObject resp = api.register(
                     nameField.getText(),
                     emailField.getText(),
-                    new String(passwordField.getPassword())
-                    // We can extend api.register to include other profile data later
+                    new String(passwordField.getPassword()),
+                    age, gender, weight, height, fitnessLevel
             );
 
             if ("ok".equals(resp.optString("status"))) {
