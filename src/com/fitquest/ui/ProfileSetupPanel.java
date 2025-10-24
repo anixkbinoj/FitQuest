@@ -16,6 +16,7 @@ public class ProfileSetupPanel extends JPanel {
     private final JTextField weightField = new JTextField();
     private final JTextField heightField = new JTextField();
     private final JComboBox<String> levelCombo = new JComboBox<>(new String[]{"Select...", "Beginner", "Advanced", "Elite"});
+    private final JButton registerButton = new JButton("Register & Continue");
 
     public ProfileSetupPanel(AppFrame frame, ApiClient api) {
         this.frame = frame;
@@ -31,11 +32,12 @@ public class ProfileSetupPanel extends JPanel {
         add(new JLabel("Height (cm):")); add(heightField);
         add(new JLabel("Fitness level:")); add(levelCombo);
 
-        JButton registerButton = new JButton("Register & Continue");
         registerButton.addActionListener(e -> registerAndContinue());
+        registerButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         JButton backButton = new JButton("Back to Login");
         backButton.addActionListener(e -> frame.show("login"));
+        backButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         add(backButton);
         add(registerButton);
@@ -49,13 +51,13 @@ public class ProfileSetupPanel extends JPanel {
         }
 
         // Parse optional fields, handling potential blank inputs
-        Integer age = null;
-        Double weight = null;
-        Double height = null;
+        final Integer[] age = {null};
+        final Double[] weight = {null};
+        final Double[] height = {null};
         try {
-            if (!ageField.getText().isBlank()) age = Integer.parseInt(ageField.getText());
-            if (!weightField.getText().isBlank()) weight = Double.parseDouble(weightField.getText());
-            if (!heightField.getText().isBlank()) height = Double.parseDouble(heightField.getText());
+            if (!ageField.getText().isBlank()) age[0] = Integer.parseInt(ageField.getText());
+            if (!weightField.getText().isBlank()) weight[0] = Double.parseDouble(weightField.getText());
+            if (!heightField.getText().isBlank()) height[0] = Double.parseDouble(heightField.getText());
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(this, "Age, Weight, and Height must be valid numbers.", "Validation Error", JOptionPane.WARNING_MESSAGE);
             return;
@@ -64,24 +66,40 @@ public class ProfileSetupPanel extends JPanel {
         String gender = genderCombo.getSelectedIndex() > 0 ? (String) genderCombo.getSelectedItem() : null;
         String fitnessLevel = levelCombo.getSelectedIndex() > 0 ? (String) levelCombo.getSelectedItem() : null;
 
-        try {
-            // Call the full register method with all profile data
-            JSONObject resp = api.register(
-                    nameField.getText(),
-                    emailField.getText(),
-                    new String(passwordField.getPassword()),
-                    age, gender, weight, height, fitnessLevel
-            );
+        // Disable the button during the network request
+        registerButton.setEnabled(false);
+        registerButton.setText("Registering...");
 
-            if ("ok".equals(resp.optString("status"))) {
-                int userId = resp.getInt("user_id");
-                frame.onLoginSuccess(userId); // Use the same flow as login
-            } else {
-                JOptionPane.showMessageDialog(this, resp.optString("msg", "Registration failed."), "Registration Error", JOptionPane.ERROR_MESSAGE);
+        new SwingWorker<JSONObject, Void>() {
+            @Override
+            protected JSONObject doInBackground() throws Exception {
+                return api.register(
+                        nameField.getText(),
+                        emailField.getText(),
+                        new String(passwordField.getPassword()),
+                        age[0], gender, weight[0], height[0], fitnessLevel
+                );
             }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, "An error occurred during registration: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
+
+            @Override
+            protected void done() {
+                try {
+                    JSONObject resp = get();
+                    if ("ok".equals(resp.optString("status"))) {
+                        // Use optInt for safer parsing. It returns 0 if the key is not found.
+                        frame.onLoginSuccess(resp);
+                    } else {
+                        JOptionPane.showMessageDialog(ProfileSetupPanel.this, resp.optString("message", "Registration failed."), "Registration Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (Exception ex) {
+                    Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                    JOptionPane.showMessageDialog(ProfileSetupPanel.this, "An error occurred during registration: " + cause.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    cause.printStackTrace();
+                } finally {
+                    registerButton.setEnabled(true);
+                    registerButton.setText("Register & Continue");
+                }
+            }
+        }.execute();
     }
 }

@@ -21,15 +21,17 @@ public class ApiClient {
                 .header("Content-Type", "application/json")
                 .POST(BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
                 .build();
-        HttpResponse<String> response = client.send(req, HttpResponse.BodyHandlers.ofString());
-        String responseBody = response.body();
-
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        String responseBody = resp.body();
+        
         try {
             return new JSONObject(responseBody);
         } catch (JSONException e) {
-            // This is critical for debugging. If the server returns an error (like a PHP warning),
-            // it won't be valid JSON. This exception will wrap the invalid server response.
-            throw new JSONException("Failed to parse JSON. Server response: " + responseBody, e);
+            // This is critical for debugging. If the server returns an error (like a PHP warning) or
+            // anything other than valid JSON, this will help identify the problem by showing the raw response.
+            String errorMessage = "Failed to parse JSON from server. Response: " + responseBody;
+            System.err.println(errorMessage); // Also log to console for visibility
+            throw new JSONException(errorMessage, e);
         }
     }
 

@@ -18,6 +18,7 @@ public class DashboardPanel extends JPanel {
     private final ApiClient api;
     private int currentUserId = 0; // Store user ID per instance
 
+    private final JButton dailyChallengesButton = new JButton("Open Daily Challenges");
     private final JLabel xpLabel = new JLabel("XP: 0");
     private final JProgressBar xpBar = new JProgressBar(0, 100); // Level 1 XP requirement
 
@@ -36,10 +37,17 @@ public class DashboardPanel extends JPanel {
         xpBar.setStringPainted(true);
         add(top, BorderLayout.NORTH);
 
-        JButton dailyChallengesButton = new JButton("Open Daily Challenges");
         dailyChallengesButton.addActionListener(e -> openDailyChallenges());
+        dailyChallengesButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        add(dailyChallengesButton, BorderLayout.CENTER);
+        JButton logoutButton = new JButton("Logout");
+        logoutButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        logoutButton.addActionListener(e -> frame.onLogout());
+
+        JPanel centerPanel = new JPanel(); // Use a panel to hold multiple buttons
+        centerPanel.add(dailyChallengesButton);
+        centerPanel.add(logoutButton);
+        add(centerPanel, BorderLayout.CENTER);
     }
 
     private void openDailyChallenges() {
@@ -48,23 +56,40 @@ public class DashboardPanel extends JPanel {
             return;
         }
 
-        try {
-            JSONObject resp = api.getDailyChallenges(currentUserId); // This will throw on error
-            if (API_OK_STATUS.equals(resp.optString(API_STATUS_KEY))) {
-                JSONArray challengesArray = resp.getJSONArray(API_CHALLENGES_KEY);
-                // Pass data to AppFrame to handle panel switching and data population
-                frame.onOpenDailyChallenges(challengesArray, currentUserId);
-            } else {
-                String message = resp.optString("message", "Could not load challenges. Please try again.");
-                JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
+        dailyChallengesButton.setEnabled(false);
+        dailyChallengesButton.setText("Loading...");
+
+        new SwingWorker<JSONObject, Void>() {
+            @Override
+            protected JSONObject doInBackground() throws Exception {
+                return api.getDailyChallenges(currentUserId);
             }
-        } catch (IOException ex) {
-            JOptionPane.showMessageDialog(this, "A network error occurred. Please check your connection.", "Network Error", JOptionPane.ERROR_MESSAGE);
-        } catch (JSONException ex) {
-            JOptionPane.showMessageDialog(this, "Error parsing data from the server.", "Data Error", JOptionPane.ERROR_MESSAGE);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "An unexpected error occurred.", "Error", JOptionPane.ERROR_MESSAGE);
-        }
+
+            @Override
+            protected void done() {
+                try {
+                    JSONObject resp = get();
+                    if (API_OK_STATUS.equals(resp.optString(API_STATUS_KEY))) {
+                        JSONArray challengesArray = resp.getJSONArray(API_CHALLENGES_KEY);
+                        frame.onOpenDailyChallenges(challengesArray, currentUserId);
+                    } else {
+                        String message = resp.optString("message", "Could not load challenges. Please try again.");
+                        JOptionPane.showMessageDialog(DashboardPanel.this, message, "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (Exception ex) {
+                    Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                    if (cause instanceof IOException) {
+                        JOptionPane.showMessageDialog(DashboardPanel.this, "A network error occurred. Please check your connection.", "Network Error", JOptionPane.ERROR_MESSAGE);
+                    } else {
+                        JOptionPane.showMessageDialog(DashboardPanel.this, "An error occurred: " + cause.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                    cause.printStackTrace();
+                } finally {
+                    dailyChallengesButton.setEnabled(true);
+                    dailyChallengesButton.setText("Open Daily Challenges");
+                }
+            }
+        }.execute();
     }
     public void setCurrentUserId(int id) {
         this.currentUserId = id;

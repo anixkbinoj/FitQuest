@@ -13,11 +13,12 @@ public class DailyChallengesPanel extends JPanel {
 
     private final JPanel challengesContainer;
     private final AppFrame frame;
-    private ApiClient api;
+    private final ApiClient api;
     private int currentUserId;
 
     public DailyChallengesPanel(AppFrame frame, ApiClient api) {
         this.frame = frame;
+        this.api = api;
         setLayout(new BorderLayout());
         add(new JLabel("Your Daily Challenges", SwingConstants.CENTER), BorderLayout.NORTH);
 
@@ -27,11 +28,11 @@ public class DailyChallengesPanel extends JPanel {
 
         JButton backButton = new JButton("Back to Dashboard");
         backButton.addActionListener(e -> frame.show("dashboard"));
+        backButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         add(backButton, BorderLayout.SOUTH);
     }
 
-    public void showChallenges(JSONArray challenges, ApiClient api, int userId) {
-        this.api = api;
+    public void showChallenges(JSONArray challenges, int userId) {
         this.currentUserId = userId;
         challengesContainer.removeAll(); // Clear previous challenges
 
@@ -68,7 +69,12 @@ public class DailyChallengesPanel extends JPanel {
         progressBar.setStringPainted(true);
 
         JButton completeButton = new JButton("Complete");
-        completeButton.addActionListener(e -> completeChallenge(udcId));
+        completeButton.addActionListener(e -> {
+            // Pass the button itself to be disabled during the action
+            completeChallenge(udcId, (JButton) e.getSource());
+        });
+        completeButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        completeButton.setEnabled(!challenge.optBoolean("is_complete", false));
 
         JPanel infoPanel = new JPanel();
         infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
@@ -82,12 +88,39 @@ public class DailyChallengesPanel extends JPanel {
         return panel;
     }
 
-    private void completeChallenge(int udcId) {
-        try {
-            JSONObject resp = api.submitProgress(currentUserId, udcId, 0, 1); // Assuming progress is handled server-side on completion
-            frame.onChallengeCompleted(resp.getInt("new_xp"), resp.getInt("new_level"));
-        } catch (IOException | InterruptedException ex) {
-            JOptionPane.showMessageDialog(this, "Network error completing challenge.", "Error", JOptionPane.ERROR_MESSAGE);
-        }
+    private void completeChallenge(int udcId, JButton sourceButton) {
+        sourceButton.setEnabled(false);
+        sourceButton.setText("Completing...");
+
+        new SwingWorker<JSONObject, Void>() {
+
+            @Override
+            protected JSONObject doInBackground() throws Exception {
+                // Assuming progress is handled server-side on completion
+                return api.submitProgress(currentUserId, udcId, 0, 1);
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    JSONObject resp = get();
+                    if ("ok".equals(resp.optString("status"))) {
+                        frame.onChallengeCompleted(resp.getInt("new_xp"), resp.getInt("new_level"));
+                        // The button is already disabled, no need to re-enable on success for this session
+                        sourceButton.setText("Done!");
+                    } else {
+                        JOptionPane.showMessageDialog(DailyChallengesPanel.this, resp.optString("message", "Failed to update progress."), "Error", JOptionPane.ERROR_MESSAGE);
+                        sourceButton.setEnabled(true); // Re-enable on failure
+                        sourceButton.setText("Complete");
+                    }
+                } catch (Exception ex) {
+                    Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                    JOptionPane.showMessageDialog(DailyChallengesPanel.this, "An error occurred: " + cause.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    cause.printStackTrace();
+                    sourceButton.setEnabled(true); // Re-enable on exception
+                    sourceButton.setText("Complete");
+                }
+            }
+        }.execute();
     }
 }

@@ -16,6 +16,7 @@ public class WelcomePanel extends JPanel {
         center.add(title); center.add(subtitle); center.add(desc);
         add(center, BorderLayout.CENTER);
         JButton start = new JButton("Start");
+        start.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         start.addActionListener(e -> frame.show("login"));
         add(start, BorderLayout.SOUTH);
     }

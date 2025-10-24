@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import com.fitquest.api.ApiClient;
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class AppFrame extends JFrame {
     private CardLayout cards = new CardLayout();
@@ -12,6 +13,7 @@ public class AppFrame extends JFrame {
 
     // Keep references to panels to manage their state
     private DashboardPanel dashboard;
+    private LoginPanel login;
     private ProfileSetupPanel profile;
     private DailyChallengesPanel dailyChallenges;
 
@@ -24,7 +26,7 @@ public class AppFrame extends JFrame {
 
         // panels
         WelcomePanel welcome = new WelcomePanel(this);
-        LoginPanel login = new LoginPanel(this, api); // LoginPanel will call back to AppFrame
+        login = new LoginPanel(this, api); // LoginPanel will call back to AppFrame
         profile = new ProfileSetupPanel(this, api);
         dashboard = new DashboardPanel(this, api);
         dailyChallenges = new DailyChallengesPanel(this, api);
@@ -39,21 +41,30 @@ public class AppFrame extends JFrame {
         show("welcome");
     }
 
-    public void onLoginSuccess(int userId) {
-        // When login is successful, set the user ID on the relevant panels
+    public void onLoginSuccess(JSONObject profileData) {
+        // This method is now called from the UI thread with the complete profile
+        int userId = profileData.optInt("user_id", 0);
         dashboard.setCurrentUserId(userId);
-        // After login or registration, go directly to the dashboard
+        dashboard.updateXp(profileData.optInt("xp", 0), profileData.optInt("level", 1));
         show("dashboard");
     }
 
     public void onOpenDailyChallenges(JSONArray challenges, int userId) {
-        dailyChallenges.showChallenges(challenges, api, userId);
+        dailyChallenges.showChallenges(challenges, userId);
         show("daily");
     }
 
     public void onChallengeCompleted(int newXp, int newLevel) {
         dashboard.updateXp(newXp, newLevel);
         show("dashboard");
+    }
+
+    public void onLogout() {
+        // Reset user-specific data on panels
+        dashboard.setCurrentUserId(0);
+        dashboard.updateXp(0, 1); // Reset XP bar to level 1
+        login.clearFields();
+        show("login"); // Go back to the login screen
     }
 
     public void show(String name) { cards.show(container, name); }
