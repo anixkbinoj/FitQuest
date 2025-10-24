@@ -21,9 +21,8 @@ public class LoginPanel extends JPanel {
                 if ("ok".equals(resp.getString("status"))) {
                     JSONObject user = resp.getJSONObject("user");
                     int uid = user.getInt("id");
-                    // Save user id somewhere (in DashboardPanel or App state). For simplicity, we will use DashboardPanel static field or better use shared context.
-                    DashboardPanel.setCurrentUserId(uid);
-                    frame.show("profile"); // ask physical details next
+                    // Notify the main frame about the successful login
+                    frame.onLoginSuccess(uid);
                 } else {
                     JOptionPane.showMessageDialog(this, resp.optString("msg","Login failed"));
                 }
@@ -33,7 +32,7 @@ public class LoginPanel extends JPanel {
             }
         });
 
-        registerBtn.addActionListener(ev -> frame.show("profile")); // or create register panel
+        registerBtn.addActionListener(ev -> frame.show("profile")); // Navigate to the registration/profile panel
         // layout
         c.gridx=0; c.gridy=0; add(new JLabel("Email:"), c);
         c.gridx=1; add(emailField, c);

@@ -48,13 +48,11 @@ public class DashboardPanel extends JPanel {
         }
 
         try {
-            JSONObject resp = api.getDailyChallenges(currentUserId);
+            JSONObject resp = api.getDailyChallenges(currentUserId); // This will throw on error
             if (API_OK_STATUS.equals(resp.optString(API_STATUS_KEY))) {
                 JSONArray challengesArray = resp.getJSONArray(API_CHALLENGES_KEY);
-                // Assuming DailyChallengesPanel has a static method to show challenges.
-                // A better design might be to get an instance of the panel from AppFrame and update it.
-                DailyChallengesPanel.showChallenges(challengesArray, api, currentUserId);
-                frame.show(DAILY_CHALLENGES_PANEL_KEY);
+                // Pass data to AppFrame to handle panel switching and data population
+                frame.onOpenDailyChallenges(challengesArray, currentUserId);
             } else {
                 String message = resp.optString("message", "Could not load challenges. Please try again.");
                 JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
@@ -63,8 +61,11 @@ public class DashboardPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "A network error occurred. Please check your connection.", "Network Error", JOptionPane.ERROR_MESSAGE);
         } catch (JSONException ex) {
             JOptionPane.showMessageDialog(this, "Error parsing data from the server.", "Data Error", JOptionPane.ERROR_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "An unexpected error occurred.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-
-    public void setCurrentUserId(int id) { this.currentUserId = id; }
+    public void setCurrentUserId(int id) {
+        this.currentUserId = id;
+    }
 }
